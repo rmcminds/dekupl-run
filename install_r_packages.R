@@ -10,3 +10,4 @@ install.packages("https://cran.r-project.org/src/contrib/Archive/Hmisc/Hmisc_4.2
 biocLite("DESeq2")
 biocLite("limma")
 biocLite("edgeR")
+install.packages("pscl")
