@@ -1,7 +1,7 @@
 #######################################################################
 # The MIT License
 #
-# Copyright (c) 2017, Jérôme Audoux (jerome.audoux@inserm.fr)
+# Copyright (c) 2017, Jérôme Audoux (jerome.audoux@inserm.fr); 2022, Ryan McMinds (mcmindsr@usf.edu)
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files 
