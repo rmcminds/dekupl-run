@@ -3,7 +3,7 @@
 #######################################################################
 # The MIT License
 #
-# Copyright (c) 2017, Jérôme Audoux (jerome.audoux@inserm.fr)
+# Copyright (c) 2017, Jérôme Audoux (jerome.audoux@inserm.fr); 2022, Ryan McMinds (mcmindsr@usf.edu)
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files
@@ -183,8 +183,10 @@ elif DIFF_METHOD == "Ttest":
     TEST_DIFF_SCRIPT   = BIN_DIR + "/Ttest_diff_method.R"
 elif DIFF_METHOD == "limma":
     TEST_DIFF_SCRIPT   = BIN_DIR + "/limma_diff_method.R"
+  elif DIFF_METHOD == "binomial":
+    TEST_DIFF_SCRIPT   = BIN_DIR + "/binomial_diff_method.R"
 else:
-    sys.exit("Invalid value for 'diff_method', possible choices are: 'DESeq2', 'limma' and 'Ttest'")
+    sys.exit("Invalid value for 'diff_method', possible choices are: 'DESeq2', 'limma', 'Ttest', and 'binomial'")
 
 # AUTOMATICALLY SET GENE DIFF METHOD TO LIMMA-VOOM IF MORE THAN 100 SAMPLES
 if 'gene_diff_method' not in config :
