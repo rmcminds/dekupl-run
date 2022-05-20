@@ -80,8 +80,8 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
 invisible(foreach(i=1:nrow(kmer_count_data)) %dopar% {
   
-  full <- pscl::zeroinfl(kmer_count_data[i,] ~ colData$condition, offset=log(colData$normalization_factor), dist='negbin')
-  red <- update(full,.~1)
+  full <- pscl::zeroinfl(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
+  red <- pscl::zeroinfl(kmer_count_data[i,] ~ log(colData$normalization_factor) | 1, dist='negbin')
   
   outdf$pvalue[i] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=2, lower.tail=FALSE))
   outdf$log2FC[i] <- full$coefficients$zero[[2]] ## maybe should introduce option to use count coef instead, or come up with and index of both (sign is important downstream and these two options can conflict...)
