@@ -82,7 +82,7 @@ LOGS            = OUTPUT_DIR + "/Logs"
 # FILES
 RAW_COUNTS                  = COUNTS_DIR    + "/raw-counts.tsv.gz"
 MASKED_COUNTS               = COUNTS_DIR    + "/masked-counts.tsv.gz"
-NORMALIZATION_FACTORS       = COUNTS_DIR  + "/normalization_factors.tsv"
+NORMALIZATION_FACTORS       = COUNTS_DIR    + "/normalization_factors.tsv"
 DIFF_COUNTS                 = KMER_DE_DIR   + "/diff-counts.tsv.gz"
 PVALUE_ALL                  = KMER_DE_DIR   + "/raw_pvals.txt.gz"
 MERGED_DIFF_COUNTS          = KMER_DE_DIR   + "/merged-diff-counts.tsv.gz"
@@ -183,10 +183,12 @@ elif DIFF_METHOD == "Ttest":
     TEST_DIFF_SCRIPT   = BIN_DIR + "/Ttest_diff_method.R"
 elif DIFF_METHOD == "limma":
     TEST_DIFF_SCRIPT   = BIN_DIR + "/limma_diff_method.R"
-  elif DIFF_METHOD == "binomial":
+elif DIFF_METHOD == "binomial":
     TEST_DIFF_SCRIPT   = BIN_DIR + "/binomial_diff_method.R"
+elif DIFF_METHOD == "zeroinfl":
+    TEST_DIFF_SCRIPT   = BIN_DIR + "/zeroinfl_diff_method.R"
 else:
-    sys.exit("Invalid value for 'diff_method', possible choices are: 'DESeq2', 'limma', 'Ttest', and 'binomial'")
+    sys.exit("Invalid value for 'diff_method', possible choices are: 'DESeq2', 'limma', 'Ttest', 'binomial', and 'zeroinfl'")
 
 # AUTOMATICALLY SET GENE DIFF METHOD TO LIMMA-VOOM IF MORE THAN 100 SAMPLES
 if 'gene_diff_method' not in config :
