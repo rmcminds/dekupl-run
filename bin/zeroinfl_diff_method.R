@@ -80,12 +80,35 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
 invisible(foreach(i=1:nrow(kmer_count_data)) %dopar% {
   
-  full <- pscl::zeroinfl(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
-  red <- pscl::zeroinfl(kmer_count_data[i,] ~ log(colData$normalization_factor) | 1, dist='negbin')
+  if(0 %in% kmer_count_data[i,]) {
   
-  outdf$pvalue[i] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=2, lower.tail=FALSE))
-  outdf$log2FC[i] <- full$coefficients$zero[[2]] ## maybe should introduce option to use count coef instead, or come up with and index of both (sign is important downstream and these two options can conflict...)
+    full <- pscl::zeroinfl(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
+    red2 <- pscl::zeroinfl(kmer_count_data[i,] ~ log(colData$normalization_factor) | 1, dist='negbin')
+  
+    outdf$pvalue[i] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE))
+    
+    redc <- pscl::zeroinfl(kmer_count_data[i,] ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
+    redz <- pscl::zeroinfl(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
 
+    pc <- as.numeric(pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE))
+    pz <- as.numeric(pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE))
+    
+    if(pc < pvalue_threshold & pz >= pvalue_threshold) {
+      outdf$log2FC[i] <- full$coefficients$count[[2]] 
+    } else {
+      outdf$log2FC[i] <- full$coefficients$zero[[2]] 
+    } ## if diff abund but not diff prev, set coefficient to actual log fc so sign is appropriate
+    
+  } else {
+    
+    full <- glm(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor), family=quasipoisson(link='log'))
+    red <- glm(kmer_count_data[i,] ~ log(colData$normalization_factor), family=quasipoisson(link='log'))
+  
+    outdf$pvalue[i] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE))
+    outdf$log2FC[i] <- full$coefficients[[2]] 
+   
+  }
+  
 })
 
 ### print a table that can be used downstream
