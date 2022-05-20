@@ -71,16 +71,46 @@ kmer_count_data <- kmer_count_data[,colData$sample]
 # Set the number of cores to use
 registerDoParallel(cores=nb_core)
 
-results <- vector("list", nrow(kmer_count_data))
 pvals <- numeric(nrow(kmer_count_data))
+outdf <- data.frame(ID=rownames(kmer_count_data), 
+                    pvalue=numeric(nrow(kmer_count_data)),
+                    meanA=rowMeans(kmer_count_data[,colData$condition==conditionA]), 
+                    meanB=rowMeans(kmer_count_data[,colData$condition==conditionB]),
+                    log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
+                    kmer_count_data)
 ## Binomial regression ANALYSIS ON EACH k-mer
 invisible(foreach(i=1:nrow(kmer_count_data)) %dopar% {
 
-  results[i] <- glm(kmer_count_data[i,] ~ colData$condition + colData$normalization_factor, family=binomial(link='logit'))
-  pvals[i] <- anova(results[i], test='LRT')$'Pr(>Chi)'[[2]]
+  res <- glm(kmer_count_data[i,] ~ colData$condition + colData$normalization_factor, family=binomial(link='logit'))
+  outdf$pvalue[i] <- anova(res, test='LRT')$'Pr(>Chi)'[[2]]
+  outdf$log2FC[i] <- res$coefficients[[2]]
 
-}
+})
 
-### print a table that can be used downstream!
+### print a table that can be used downstream
+des <- outdf[,-2]
+write.table(des,
+            file=gzfile(dataDESeq2All),
+            sep="\t",
+            quote=FALSE,
+            col.names = FALSE,
+            row.names = FALSE)
+
+pv <- outdf[,c('ID','pvalue')]
+write.table(pv,
+            file=gzfile(output_pvalue_all),
+            sep="\t",
+            quote=FALSE,
+            col.names = FALSE,
+            row.names = FALSE)
+
+outdf_filt <- outdf[outdf$pvalue < pvalue_threshold, c('tag','pvalue','meanA','meanB','log2FC')]
+colnames(outdf_filt)[1] <- 'tag'
+write.table(outdf_filt,
+            file=gzfile(output_diff_counts),
+            sep="\t",
+            quote=FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
 
 logging(paste("End binomial_diff_methods"))
