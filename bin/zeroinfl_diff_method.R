@@ -101,8 +101,8 @@ invisible(foreach(i=1:nrow(kmer_count_data)) %dopar% {
     
   } else {
     
-    full <- glm(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor), family=quasipoisson(link='log'))
-    red <- glm(kmer_count_data[i,] ~ log(colData$normalization_factor), family=quasipoisson(link='log'))
+    full <- MASS::glm.nb(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor))
+    red <- MASS::glm.nb(kmer_count_data[i,] ~ log(colData$normalization_factor))
   
     outdf$pvalue[i] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE))
     outdf$log2FC[i] <- full$coefficients[[2]] 
