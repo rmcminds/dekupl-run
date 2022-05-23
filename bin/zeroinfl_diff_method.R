@@ -84,18 +84,18 @@ invisible(foreach(i=1:nrow(kmer_count_data)) %dopar% {
   
     full <- pscl::zeroinfl(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
     red2 <- pscl::zeroinfl(kmer_count_data[i,] ~ log(colData$normalization_factor) | 1, dist='negbin')
-  
-    outdf$pvalue[i] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE))
-    
     redc <- pscl::zeroinfl(kmer_count_data[i,] ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
     redz <- pscl::zeroinfl(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
-
+    
+    p2 <- as.numeric(pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE))
     pc <- as.numeric(pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE))
     pz <- as.numeric(pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE))
-    
+        
     if(pc < pvalue_threshold & pz >= pvalue_threshold) {
+      outdf$pvalue[i] <- min(p2,pc)
       outdf$log2FC[i] <- full$coefficients$count[[2]] 
     } else {
+      outdf$pvalue[i] <- min(p2,pz)
       outdf$log2FC[i] <- full$coefficients$zero[[2]] 
     } ## if diff abund but not diff prev, set coefficient to actual log fc so sign is appropriate
     
