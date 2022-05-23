@@ -53,7 +53,7 @@ logging <- function(str) {
 
 dir.create(output_tmp, showWarnings = FALSE)
 
-logging(paste("Start binomial_diff_methods"))
+logging(paste("Start zeroinfl_diff_methods"))
 logging(paste("pvalue_threshold", pvalue_threshold))
 logging(paste("log2fc_threshold", log2fc_threshold))
 
