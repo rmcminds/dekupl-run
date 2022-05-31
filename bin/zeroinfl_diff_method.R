@@ -57,9 +57,6 @@ logging(paste("Start zeroinfl_diff_methods"))
 logging(paste("pvalue_threshold", pvalue_threshold))
 logging(paste("log2fc_threshold", log2fc_threshold))
 
-## LOAD THE HEADER
-header = as.character(unlist(read.table(file = header_kmer_counts, sep = "\t", header = FALSE)))
-
 ## LOADING PRIOR KNOWN NORMALISATION FACTORS
 colData = read.table(sample_conditions,header=T,row.names=1)
 
