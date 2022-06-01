@@ -24,6 +24,10 @@
 # Software. 
 #######################################################################
 
+library("data.table")
+library("foreach")
+library("doParallel")
+
 args <- commandArgs(TRUE)
 
 # Get parameters for the test
