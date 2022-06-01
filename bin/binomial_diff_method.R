@@ -80,25 +80,28 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
                     log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
                     kmer_count_data)
 ## Binomial regression ANALYSIS ON EACH k-mer
-invisible(foreach(i=1:nrow(kmer_count_data)) %dopar% {
+pv_log <- foreach(i=1:nrow(kmer_count_data), .combine=rbind) %dopar% {
 
   res <- glm(kmer_count_data[i,] ~ colData$condition + colData$normalization_factor, family=binomial(link='logit'))
-  outdf$pvalue[i] <- anova(res, test='LRT')$'Pr(>Chi)'[[2]]
-  outdf$log2FC[i] <- res$coefficients[[2]]
 
-})
+  return(c(anova(res, test='LRT')$'Pr(>Chi)'[[2]], res$coefficients[[2]]))
+  
+}
+
+outdf$pvalue <- pv_log[,1]
+outdf$log2fc <- pv_log[,2]
 
 ### print a table that can be used downstream
-des <- outdf[,-2]
-write.table(des,
+outdf_filt <- outdf[,-2]
+write.table(outdf_filt,
             file=gzfile(dataDESeq2All),
             sep="\t",
             quote=FALSE,
             col.names = FALSE,
             row.names = FALSE)
 
-pv <- outdf[,c('ID','pvalue')]
-write.table(pv,
+outdf_filt <- outdf[,c('ID','pvalue')]
+write.table(outdf_filt,
             file=gzfile(output_pvalue_all),
             sep="\t",
             quote=FALSE,
