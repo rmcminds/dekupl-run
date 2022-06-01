@@ -79,7 +79,7 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
                     log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
                     kmer_count_data)
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
-invisible(foreach(i=1:nrow(kmer_count_data)) %dopar% {
+pv_log <- foreach(i=1:nrow(kmer_count_data), .combine=rbind) %dopar% {
   
   if(0 %in% kmer_count_data[i,]) {
   
@@ -93,11 +93,9 @@ invisible(foreach(i=1:nrow(kmer_count_data)) %dopar% {
     pz <- as.numeric(pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE))
         
     if(pc < pvalue_threshold & pz >= pvalue_threshold) {
-      outdf$pvalue[i] <- min(p2,pc)
-      outdf$log2FC[i] <- full$coefficients$count[[2]] 
+      return(c(min(p2,pc), full$coefficients$count[[2]]))
     } else {
-      outdf$pvalue[i] <- min(p2,pz)
-      outdf$log2FC[i] <- full$coefficients$zero[[2]] 
+      return(c(min(p2,pz), full$coefficients$zero[[2]]))
     } ## if diff abund but not diff prev, set coefficient to actual log fc so sign is appropriate
     
   } else {
@@ -105,24 +103,26 @@ invisible(foreach(i=1:nrow(kmer_count_data)) %dopar% {
     full <- MASS::glm.nb(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor))
     red <- MASS::glm.nb(kmer_count_data[i,] ~ log(colData$normalization_factor))
   
-    outdf$pvalue[i] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE))
-    outdf$log2FC[i] <- full$coefficients[[2]] 
+    return(c(as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE)), full$coefficients[[2]]))
    
   }
   
-})
+}
+
+outdf$pvalue <- pv_log[,1]
+outdf$log2fc <- pv_log[,2]
 
 ### print a table that can be used downstream
-des <- outdf[,-2]
-write.table(des,
+outdf_filt <- outdf[,-2]
+write.table(outdf_filt,
             file=gzfile(dataDESeq2All),
             sep="\t",
             quote=FALSE,
             col.names = FALSE,
             row.names = FALSE)
 
-pv <- outdf[,c('ID','pvalue')]
-write.table(pv,
+outdf_filt <- outdf[,c('ID','pvalue')]
+write.table(outdf_filt,
             file=gzfile(output_pvalue_all),
             sep="\t",
             quote=FALSE,
