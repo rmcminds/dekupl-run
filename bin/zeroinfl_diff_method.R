@@ -66,7 +66,6 @@ colData = read.table(sample_conditions,header=T,row.names=1)
 
 ## LOAD KMER COUNTS
 kmer_count_data = read.table(kmer_counts,header=T,row.names=1)
-kmer_count_data <- kmer_count_data[,colData$sample]
 
 # Set the number of cores to use
 registerDoParallel(cores=nb_core)
@@ -74,8 +73,8 @@ registerDoParallel(cores=nb_core)
 pvals <- numeric(nrow(kmer_count_data))
 outdf <- data.frame(ID=rownames(kmer_count_data), 
                     pvalue=numeric(nrow(kmer_count_data)),
-                    meanA=rowMeans(kmer_count_data[,colData$condition==conditionA]), 
-                    meanB=rowMeans(kmer_count_data[,colData$condition==conditionB]),
+                    meanA=rowMeans(kmer_count_data[,rownames(colData)[colData$condition==conditionA]]), 
+                    meanB=rowMeans(kmer_count_data[,rownames(colData)[colData$condition==conditionB]]),
                     log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
                     kmer_count_data)
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
