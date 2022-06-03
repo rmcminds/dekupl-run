@@ -81,23 +81,17 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
 ## Binomial regression ANALYSIS ON EACH k-mer
 pv_log <- foreach(i=1:nrow(kmer_count_data), .combine=rbind) %dopar% {
 
-  res <- glm(kmer_count_data[i,] ~ colData$condition + colData$normalization_factor, family=binomial(link='logit'))
+  res <- glm(as.numeric(kmer_count_data[i,]) ~ colData$condition + colData$normalization_factor, family=binomial(link='logit'))
 
   return(c(anova(res, test='LRT')$'Pr(>Chi)'[[2]], res$coefficients[[2]]))
   
 }
 
 outdf$pvalue <- pv_log[,1]
-outdf$log2fc <- pv_log[,2]
+outdf$log2FC <- pv_log[,2]
 
 ### print a table that can be used downstream
-outdf_filt <- outdf[,-2]
-write.table(outdf_filt,
-            file=gzfile(dataDESeq2All),
-            sep="\t",
-            quote=FALSE,
-            col.names = FALSE,
-            row.names = FALSE)
+dir.create(dirname(output_pvalue_all))
 
 outdf_filt <- outdf[,c('ID','pvalue')]
 write.table(outdf_filt,
@@ -107,7 +101,7 @@ write.table(outdf_filt,
             col.names = FALSE,
             row.names = FALSE)
 
-outdf_filt <- outdf[outdf$pvalue < pvalue_threshold, c('tag','pvalue','meanA','meanB','log2FC')]
+outdf_filt <- outdf[outdf$pvalue < pvalue_threshold, c('ID','pvalue','meanA','meanB','log2FC')]
 colnames(outdf_filt)[1] <- 'tag'
 write.table(outdf_filt,
             file=gzfile(output_diff_counts),
