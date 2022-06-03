@@ -82,10 +82,10 @@ pv_log <- foreach(i=1:nrow(kmer_count_data), .combine=rbind) %dopar% {
   
   if(0 %in% kmer_count_data[i,]) {
   
-    full <- pscl::zeroinfl(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
-    red2 <- pscl::zeroinfl(kmer_count_data[i,] ~ log(colData$normalization_factor) | 1, dist='negbin')
-    redc <- pscl::zeroinfl(kmer_count_data[i,] ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
-    redz <- pscl::zeroinfl(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
+    full <- pscl::zeroinfl(as.numeric(kmer_count_data[i,]) ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
+    red2 <- pscl::zeroinfl(as.numeric(kmer_count_data[i,]) ~ log(colData$normalization_factor) | 1, dist='negbin')
+    redc <- pscl::zeroinfl(as.numeric(kmer_count_data[i,]) ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
+    redz <- pscl::zeroinfl(as.numeric(kmer_count_data[i,]) ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
     
     p2 <- as.numeric(pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE))
     pc <- as.numeric(pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE))
@@ -99,8 +99,8 @@ pv_log <- foreach(i=1:nrow(kmer_count_data), .combine=rbind) %dopar% {
     
   } else {
     
-    full <- MASS::glm.nb(kmer_count_data[i,] ~ colData$condition + log(colData$normalization_factor))
-    red <- MASS::glm.nb(kmer_count_data[i,] ~ log(colData$normalization_factor))
+    full <- MASS::glm.nb(as.numeric(kmer_count_data[i,]) ~ colData$condition + log(colData$normalization_factor))
+    red <- MASS::glm.nb(as.numeric(kmer_count_data[i,]) ~ log(colData$normalization_factor))
   
     return(c(as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE)), full$coefficients[[2]]))
    
@@ -109,16 +109,10 @@ pv_log <- foreach(i=1:nrow(kmer_count_data), .combine=rbind) %dopar% {
 }
 
 outdf$pvalue <- pv_log[,1]
-outdf$log2fc <- pv_log[,2]
+outdf$log2FC <- pv_log[,2]
 
 ### print a table that can be used downstream
-outdf_filt <- outdf[,-2]
-write.table(outdf_filt,
-            file=gzfile(dataDESeq2All),
-            sep="\t",
-            quote=FALSE,
-            col.names = FALSE,
-            row.names = FALSE)
+dir.create(dirname(output_pvalue_all))
 
 outdf_filt <- outdf[,c('ID','pvalue')]
 write.table(outdf_filt,
@@ -128,7 +122,7 @@ write.table(outdf_filt,
             col.names = FALSE,
             row.names = FALSE)
 
-outdf_filt <- outdf[outdf$pvalue < pvalue_threshold, c('tag','pvalue','meanA','meanB','log2FC')]
+outdf_filt <- outdf[outdf$pvalue < pvalue_threshold, c('ID','pvalue','meanA','meanB','log2FC')]
 colnames(outdf_filt)[1] <- 'tag'
 write.table(outdf_filt,
             file=gzfile(output_diff_counts),
