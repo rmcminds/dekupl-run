@@ -78,14 +78,14 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
                     log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
                     kmer_count_data)
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
-pv_log <- foreach(i=1:nrow(kmer_count_data), .combine=rbind) %dopar% {
+pv_log <- foreach(i=as.data.frame(t(kmer_count_data)), .combine=rbind, .options.multicore=list(preschedule=FALSE)) %dopar% {
   
-  if(0 %in% kmer_count_data[i,]) {
+  if(0 %in% i) {
   
-    full <- pscl::zeroinfl(as.numeric(kmer_count_data[i,]) ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
-    red2 <- pscl::zeroinfl(as.numeric(kmer_count_data[i,]) ~ log(colData$normalization_factor) | 1, dist='negbin')
-    redc <- pscl::zeroinfl(as.numeric(kmer_count_data[i,]) ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
-    redz <- pscl::zeroinfl(as.numeric(kmer_count_data[i,]) ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
+    full <- pscl::zeroinfl(i ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
+    red2 <- pscl::zeroinfl(i ~ log(colData$normalization_factor) | 1, dist='negbin')
+    redc <- pscl::zeroinfl(i ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
+    redz <- pscl::zeroinfl(i ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
     
     p2 <- as.numeric(pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE))
     pc <- as.numeric(pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE))
@@ -99,8 +99,8 @@ pv_log <- foreach(i=1:nrow(kmer_count_data), .combine=rbind) %dopar% {
     
   } else {
     
-    full <- MASS::glm.nb(as.numeric(kmer_count_data[i,]) ~ colData$condition + log(colData$normalization_factor))
-    red <- MASS::glm.nb(as.numeric(kmer_count_data[i,]) ~ log(colData$normalization_factor))
+    full <- MASS::glm.nb(i ~ colData$condition + log(colData$normalization_factor))
+    red <- MASS::glm.nb(i ~ log(colData$normalization_factor))
   
     return(c(as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE)), full$coefficients[[2]]))
    
