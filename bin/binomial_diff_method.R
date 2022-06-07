@@ -79,9 +79,9 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
                     log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
                     kmer_count_data)
 ## Binomial regression ANALYSIS ON EACH k-mer
-pv_log <- foreach(i=1:nrow(kmer_count_data), .combine=rbind) %dopar% {
+pv_log <- foreach(i=as.data.frame(t(kmer_count_data)), .combine=rbind, .options.multicore=list(preschedule=FALSE)) %dopar% {
 
-  res <- glm(as.numeric(kmer_count_data[i,]) ~ colData$condition + colData$normalization_factor, family=binomial(link='logit'))
+  res <- glm(i ~ colData$condition + colData$normalization_factor, family=binomial(link='logit'))
 
   return(c(anova(res, test='LRT')$'Pr(>Chi)'[[2]], res$coefficients[[2]]))
   
