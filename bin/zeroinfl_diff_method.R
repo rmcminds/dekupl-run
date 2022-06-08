@@ -62,10 +62,13 @@ logging(paste("pvalue_threshold", pvalue_threshold))
 logging(paste("log2fc_threshold", log2fc_threshold))
 
 ## LOADING PRIOR KNOWN NORMALISATION FACTORS
+logging(paste("loading colData:", date()))
 colData = read.table(sample_conditions,header=T,row.names=1)
 
 ## LOAD KMER COUNTS
+logging(paste("loading kmer counts:", date()))
 kmer_count_data = read.table(kmer_counts,header=T,row.names=1)
+logging(paste("finished loading colData:", date()))
 
 # Set the number of cores to use
 registerDoParallel(cores=nb_core)
@@ -78,7 +81,8 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
                     log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
                     kmer_count_data)
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
-pv_log <- foreach(i=iter(kmer_count_data, by='row'), .combine=rbind) %dopar% {
+logging(paste("starting parallel linear model fitting:", date()))
+pv_log <- foreach(i=iter(as.matrix(kmer_count_data), by='row'), .combine=rbind) %dopar% {
   
   if(0 %in% i) {
   
@@ -107,6 +111,7 @@ pv_log <- foreach(i=iter(kmer_count_data, by='row'), .combine=rbind) %dopar% {
   }
   
 }
+logging(paste("finished parallel linear model fitting:", date()))
 
 outdf$pvalue <- pv_log[,1]
 outdf$log2FC <- pv_log[,2]
