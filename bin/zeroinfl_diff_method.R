@@ -148,23 +148,26 @@ logging(paste("Foreach of the", length(lst_files),"files"))
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
 invisible(foreach(i=1:length(lst_files)) %dopar% {
   
-  bigTab = as.matrix(read.table(lst_files[i],header=F,stringsAsFactors=F,row.names=1))
+  bigTab = as.matrix(read.table(lst_files[[i]],header=F,stringsAsFactors=F,row.names=1))
   colnames(bigTab) <- header
   relabund <- sapply(1:ncol(bigTab), function(x) bigTab[,x] / colData$normalization_factor[[x]])
-
+  colnames(relabund) <- header
+    
   outdf <- data.frame(ID=rownames(bigTab), 
                       pvalue=numeric(nrow(bigTab)),
                       meanA=rowMeans(relabund[,rownames(colData)[colData$condition==conditionA]]), 
                       meanB=rowMeans(relabund[,rownames(colData)[colData$condition==conditionB]]),
                       log2FC=numeric(nrow(bigTab))) ## actually logit; keeping name for compatibility
   for(j in 1:nrow(bigTab)) {
-  
-    if(0 %in% bigTab[j,] ) {
+    
+    jcounts <- bigTab[j,]
 
-      full <- pscl::zeroinfl(bigTab[j,] ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
-      red2 <- pscl::zeroinfl(bigTab[j,] ~ log(colData$normalization_factor) | 1, dist='negbin')
-      redc <- pscl::zeroinfl(bigTab[j,] ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
-      redz <- pscl::zeroinfl(bigTab[j,] ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
+    if(0 %in% jcounts) {
+
+      full <- pscl::zeroinfl(jcounts ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
+      red2 <- pscl::zeroinfl(jcounts ~ log(colData$normalization_factor) | 1, dist='negbin')
+      redc <- pscl::zeroinfl(jcounts ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
+      redz <- pscl::zeroinfl(jcounts ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
 
       p2 <- as.numeric(pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE))
       pc <- as.numeric(pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE))
@@ -180,8 +183,8 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
 
     } else {
 
-      full <- MASS::glm.nb(bigTab[j,] ~ colData$condition + log(colData$normalization_factor))
-      red <- MASS::glm.nb(bigTab[j,] ~ log(colData$normalization_factor))
+      full <- MASS::glm.nb(jcounts ~ colData$condition + log(colData$normalization_factor))
+      red <- MASS::glm.nb(jcounts ~ log(colData$normalization_factor))
 
       outdf$pvalue[j] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE))
       outdf$log2FC[j] <- full$coefficients[[2]]
