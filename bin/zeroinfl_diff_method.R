@@ -78,7 +78,7 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
                     log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
                     kmer_count_data)
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
-pv_log <- foreach(i=iter(kmer_count_data), by='row'), .combine=rbind) %dopar% {
+pv_log <- foreach(i=iter(kmer_count_data, by='row'), .combine=rbind) %dopar% {
   
   if(0 %in% i) {
   
