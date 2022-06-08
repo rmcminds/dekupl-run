@@ -79,7 +79,7 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
                     log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
                     kmer_count_data)
 ## Binomial regression ANALYSIS ON EACH k-mer
-pv_log <- foreach(i=iter(kmer_count_data), by='row'), .combine=rbind) %dopar% {
+pv_log <- foreach(i=iter(kmer_count_data, by='row'), .combine=rbind) %dopar% {
 
   res <- glm(i ~ colData$condition + colData$normalization_factor, family=binomial(link='logit'))
 
