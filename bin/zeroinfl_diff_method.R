@@ -146,67 +146,65 @@ header = as.character(unlist(read.table(file = header_kmer_counts, sep = "\t", h
 logging(paste("Foreach of the", length(lst_files),"files"))
 
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
-invisible(foreach(i=1:length(lst_files), .combine=rbind) %dopar% {
+invisible(foreach(i=1:length(lst_files)) %dopar% {
   
   bigTab = as.matrix(read.table(lst_files[i],header=F,stringsAsFactors=F,row.names=1))
   colnames(bigTab) <- header
   relabund <- sapply(1:ncol(bigTab), function(x) bigTab[,x] / colData$normalization_factor[[x]])
 
-  pvals <- numeric(nrow(bigTab))
   outdf <- data.frame(ID=rownames(bigTab), 
                       pvalue=numeric(nrow(bigTab)),
                       meanA=rowMeans(relabund[,rownames(colData)[colData$condition==conditionA]]), 
                       meanB=rowMeans(relabund[,rownames(colData)[colData$condition==conditionB]]),
-                      log2FC=numeric(nrow(bigTab)), ## actually logit; keeping name for compatibility
-                      bigTab)
-  for(i in 1:nrow(bigTab)) {
+                      log2FC=numeric(nrow(bigTab))) ## actually logit; keeping name for compatibility
+  for(j in 1:nrow(bigTab)) {
   
-    if(0 %in% bigTab[i,] ) {
+    if(0 %in% bigTab[j,] ) {
 
-      full <- pscl::zeroinfl(bigTab[i,] ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
-      red2 <- pscl::zeroinfl(bigTab[i,] ~ log(colData$normalization_factor) | 1, dist='negbin')
-      redc <- pscl::zeroinfl(bigTab[i,] ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
-      redz <- pscl::zeroinfl(bigTab[i,] ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
+      full <- pscl::zeroinfl(bigTab[j,] ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
+      red2 <- pscl::zeroinfl(bigTab[j,] ~ log(colData$normalization_factor) | 1, dist='negbin')
+      redc <- pscl::zeroinfl(bigTab[j,] ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
+      redz <- pscl::zeroinfl(bigTab[j,] ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
 
       p2 <- as.numeric(pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE))
       pc <- as.numeric(pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE))
       pz <- as.numeric(pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE))
 
       if(pc < pvalue_threshold & pz >= pvalue_threshold) {
-        outdf$pvalue[i] <- min(p2,pc)
-        outdf$log2FC[i] <- full$coefficients$count[[2]]
+        outdf$pvalue[j] <- min(p2,pc)
+        outdf$log2FC[j] <- full$coefficients$count[[2]]
       } else {
-        outdf$pvalue[i] <- min(p2,pz)
-        outdf$log2FC[i] <- full$coefficients$zero[[2]]
+        outdf$pvalue[j] <- min(p2,pz)
+        outdf$log2FC[j] <- full$coefficients$zero[[2]]
       } ## if diff abund but not diff prev, set coefficient to actual log fc so sign is appropriate
 
     } else {
 
-      full <- MASS::glm.nb(bigTab[i,] ~ colData$condition + log(colData$normalization_factor))
-      red <- MASS::glm.nb(bigTab[i,] ~ log(colData$normalization_factor))
+      full <- MASS::glm.nb(bigTab[j,] ~ colData$condition + log(colData$normalization_factor))
+      red <- MASS::glm.nb(bigTab[j,] ~ log(colData$normalization_factor))
 
-      outdf$pvalue[i] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE))
-      outdf$log2FC[i] <- full$coefficients[[2]]
+      outdf$pvalue[j] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE))
+      outdf$log2FC[j] <- full$coefficients[[2]]
 
     }
     
   }
                      
-outdf_filt <- outdf[,c('ID','pvalue')]
-write.table(outdf_filt,
-            file=gzfile(paste(output_tmp_DESeq2,i,"_pvalue_part_tmp.gz",sep="")),
-            sep="\t",
-            quote=FALSE,
-            col.names = FALSE,
-            row.names = FALSE)
-
-outdf_filt <- outdf[outdf$pvalue < pvalue_threshold, c('ID','meanA','meanB','log2FC')]
-write.table(outdf_filt,
-            file=gzfile(paste(output_tmp_DESeq2,i,"_dataDESeq2_part_tmp.gz", sep="")),
-            sep="\t",
-            quote=FALSE,
-            col.names = FALSE,
-            row.names = FALSE)
+  outdf_filt <- outdf[,c('ID','pvalue')]
+  write.table(outdf_filt,
+              file=gzfile(paste(output_tmp_DESeq2,i,"_pvalue_part_tmp.gz",sep="")),
+              sep="\t",
+              quote=FALSE,
+              col.names = FALSE,
+              row.names = FALSE)
+  
+  outdf_filt <- cbind(outdf[, c('ID','meanA','meanB','log2FC')], as.data.frame(bigTab))
+  write.table(outdf_filt,
+              file=gzfile(paste(output_tmp_DESeq2,i,"_dataDESeq2_part_tmp.gz", sep="")),
+              sep="\t",
+              quote=FALSE,
+              col.names = FALSE,
+              row.names = FALSE)
   
 }) #END FOREACH
 
