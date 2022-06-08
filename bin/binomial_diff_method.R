@@ -62,11 +62,14 @@ logging(paste("pvalue_threshold", pvalue_threshold))
 logging(paste("log2fc_threshold", log2fc_threshold))
 
 ## LOADING PRIOR KNOWN NORMALISATION FACTORS
+logging(paste("loading colData:", date()))
 colData = read.table(sample_conditions,header=T,row.names=1)
 
 ## LOAD KMER COUNTS
+logging(paste("loading kmer counts:", date()))
 kmer_count_data = read.table(kmer_counts,header=T,row.names=1)
 kmer_count_data[kmer_count_data > 0] <- 1
+logging(paste("finished loading colData:", date()))
 
 # Set the number of cores to use
 registerDoParallel(cores=nb_core)
@@ -79,6 +82,7 @@ outdf <- data.frame(ID=rownames(kmer_count_data),
                     log2FC=numeric(nrow(kmer_count_data)), ## actually logit; keeping name for compatibility
                     kmer_count_data)
 ## Binomial regression ANALYSIS ON EACH k-mer
+logging(paste("starting parallel linear model fitting:", date()))
 pv_log <- foreach(i=iter(kmer_count_data, by='row'), .combine=rbind) %dopar% {
 
   res <- glm(i ~ colData$condition + colData$normalization_factor, family=binomial(link='logit'))
@@ -86,6 +90,7 @@ pv_log <- foreach(i=iter(kmer_count_data, by='row'), .combine=rbind) %dopar% {
   return(c(anova(res, test='LRT')$'Pr(>Chi)'[[2]], res$coefficients[[2]]))
   
 }
+logging(paste("finished parallel linear model fitting:", date()))
 
 outdf$pvalue <- pv_log[,1]
 outdf$log2FC <- pv_log[,2]
