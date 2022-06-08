@@ -161,13 +161,14 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
   for(j in 1:nrow(bigTab)) {
     
     jcounts <- bigTab[j,]
+    offsets <- log(colData$normalization_factor)
 
     if(0 %in% jcounts) {
 
-      full <- pscl::zeroinfl(jcounts ~ colData$condition + log(colData$normalization_factor) | colData$condition, dist='negbin')
-      red2 <- pscl::zeroinfl(jcounts ~ log(colData$normalization_factor) | 1, dist='negbin')
-      redc <- pscl::zeroinfl(jcounts ~ log(colData$normalization_factor) | colData$condition, dist='negbin')
-      redz <- pscl::zeroinfl(jcounts ~ colData$condition + log(colData$normalization_factor) | 1, dist='negbin')
+      full <- pscl::zeroinfl(jcounts ~ colData$condition + offset(offsets) | colData$condition, dist='negbin')
+      red2 <- pscl::zeroinfl(jcounts ~ 1 + offset(offsets) | 1, dist='negbin')
+      redc <- pscl::zeroinfl(jcounts ~ 1 + offset(offsets) | colData$condition, dist='negbin')
+      redz <- pscl::zeroinfl(jcounts ~ colData$condition + offset(offsets) | 1, dist='negbin')
 
       p2 <- as.numeric(pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE))
       pc <- as.numeric(pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE))
@@ -183,8 +184,8 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
 
     } else {
 
-      full <- MASS::glm.nb(jcounts ~ colData$condition + log(colData$normalization_factor))
-      red <- MASS::glm.nb(jcounts ~ log(colData$normalization_factor))
+      full <- MASS::glm.nb(jcounts ~ colData$condition + offset(offsets))
+      red <- MASS::glm.nb(jcounts ~ 1 + offset(offsets))
 
       outdf$pvalue[j] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE))
       outdf$log2FC[j] <- full$coefficients[[2]]
