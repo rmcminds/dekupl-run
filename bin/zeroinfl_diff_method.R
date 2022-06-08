@@ -68,7 +68,7 @@ colData = read.table(sample_conditions,header=T,row.names=1)
 ## LOAD KMER COUNTS
 logging(paste("loading kmer counts:", date()))
 kmer_count_data = read.table(kmer_counts,header=T,row.names=1)
-logging(paste("finished loading colData:", date()))
+logging(paste("finished loading kmer counts:", date()))
 
 # Set the number of cores to use
 registerDoParallel(cores=nb_core)
