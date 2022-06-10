@@ -153,14 +153,9 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
   bigTab = as.matrix(read.table(lst_files[[i]],header=F,stringsAsFactors=F,row.names=1))
   colnames(bigTab) <- header
   
-  relabund <- sapply(1:ncol(bigTab), function(x) bigTab[,x] / colData$normalization_factor[[x]])
-  colnames(relabund) <- header
-  
-  bigTab <- t(bigTab) ## faster to access whole columns than whole rows
-  
   offsets <- log(colData$normalization_factor)
 
-  res <- apply(bigTab, 2, function(jcounts) {
+  res <- apply(bigTab, 1, function(jcounts) {
     
     if(0 %in% jcounts) {
 
@@ -193,7 +188,10 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
     
   })
   
-  outdf <- data.frame(ID=colnames(bigTab), 
+  relabund <- sapply(1:ncol(bigTab), function(x) bigTab[,x] / colData$normalization_factor[[x]])
+  colnames(relabund) <- header
+  
+  outdf <- data.frame(ID=rownames(bigTab), 
                       pvalue=res[1,],
                       meanA=rowMeans(relabund[,rownames(colData)[colData$condition==conditionA]]), 
                       meanB=rowMeans(relabund[,rownames(colData)[colData$condition==conditionB]]),
