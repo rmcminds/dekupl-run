@@ -160,10 +160,8 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
   
   offsets <- log(colData$normalization_factor)
 
-  res <- sapply(1:ncol(bigTab), function(j) {
+  res <- apply(bigTab, 2, function(jcounts) {
     
-    jcounts <- bigTab[,j]
-
     if(0 %in% jcounts) {
 
       # from library pscl
