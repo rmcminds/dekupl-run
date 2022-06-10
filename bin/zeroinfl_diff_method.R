@@ -27,7 +27,8 @@
 library("data.table")
 library("foreach")
 library("doParallel")
-## also requires package pscl, which is not included in standard DE-kupl installation
+library("MASS")
+library("pscl")
 
 args <- commandArgs(TRUE)
 
@@ -51,17 +52,17 @@ output_log                = args[13]#snakemake@log[[1]]
 
 # Temporary files
 output_tmp_chunks         = paste(output_tmp,"/tmp_chunks/",sep="")
-output_tmp_DESeq2         = paste(output_tmp,"/tmp_DESeq2/",sep="")
-header_kmer_counts         = paste(output_tmp,"/header_kmer_counts.txt",sep="")
+output_tmp_zeroinfl       = paste(output_tmp,"/tmp_zeroinfl/",sep="")
+header_kmer_counts        = paste(output_tmp,"/header_kmer_counts.txt",sep="")
 tmp_concat                = paste(output_tmp,"/tmp_concat.txt",sep="")
 adj_pvalue                = paste(output_tmp,"/adj_pvalue.txt.gz",sep="")
-dataDESeq2All             = paste(output_tmp,"/dataDESeq2All.txt.gz",sep="")
-dataDESeq2Filtered        = paste(output_tmp,"/dataDESeq2Filtered.txt.gz",sep="")
+dataZeroinflAll           = paste(output_tmp,"/dataZeroinflAll.txt.gz",sep="")
+dataZeroinflFiltered      = paste(output_tmp,"/dataZeroinflFiltered.txt.gz",sep="")
 
 # Create directories
 dir.create(output_tmp, showWarnings = FALSE, recursive = TRUE)
 dir.create(output_tmp_chunks, showWarnings = FALSE, recursive = TRUE)
-dir.create(output_tmp_DESeq2, showWarnings = FALSE, recursive = TRUE)
+dir.create(output_tmp_zeroinfl, showWarnings = FALSE, recursive = TRUE)
 
 # Function for logging to the output
 logging <- function(str) {
@@ -151,61 +152,66 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
   
   bigTab = as.matrix(read.table(lst_files[[i]],header=F,stringsAsFactors=F,row.names=1))
   colnames(bigTab) <- header
+  
   relabund <- sapply(1:ncol(bigTab), function(x) bigTab[,x] / colData$normalization_factor[[x]])
   colnames(relabund) <- header
+  
+  bigTab <- t(bigTab) ## faster to access whole columns than whole rows
+  
+  offsets <- log(colData$normalization_factor)
+
+  res <- sapply(1:ncol(bigTab), function(j) {
     
-  outdf <- data.frame(ID=rownames(bigTab), 
-                      pvalue=numeric(nrow(bigTab)),
-                      meanA=rowMeans(relabund[,rownames(colData)[colData$condition==conditionA]]), 
-                      meanB=rowMeans(relabund[,rownames(colData)[colData$condition==conditionB]]),
-                      log2FC=numeric(nrow(bigTab))) ## actually logit; keeping name for compatibility
-  for(j in 1:nrow(bigTab)) {
-    
-    jcounts <- bigTab[j,]
-    offsets <- log(colData$normalization_factor)
+    jcounts <- bigTab[,j]
 
     if(0 %in% jcounts) {
 
-      full <- pscl::zeroinfl(jcounts ~ colData$condition + offset(offsets) | colData$condition, dist='negbin')
-      red2 <- pscl::zeroinfl(jcounts ~ 1 + offset(offsets) | 1, dist='negbin')
-      redc <- pscl::zeroinfl(jcounts ~ 1 + offset(offsets) | colData$condition, dist='negbin')
-      redz <- pscl::zeroinfl(jcounts ~ colData$condition + offset(offsets) | 1, dist='negbin')
+      # from library pscl
+      full <- zeroinfl(jcounts ~ colData$condition + offset(offsets) | colData$condition, dist='negbin', model = FALSE, y = FALSE)
+      red2 <- zeroinfl(jcounts ~ 1 + offset(offsets) | 1, dist='negbin', model = FALSE, y = FALSE)
+      redc <- zeroinfl(jcounts ~ 1 + offset(offsets) | colData$condition, dist='negbin', model = FALSE, y = FALSE)
+      redz <- zeroinfl(jcounts ~ colData$condition + offset(offsets) | 1, dist='negbin', model = FALSE, y = FALSE)
 
-      p2 <- as.numeric(pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE))
-      pc <- as.numeric(pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE))
-      pz <- as.numeric(pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE))
+      p2 <- pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE)
+      pc <- pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE)
+      pz <- pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE)
 
       if(pc < pvalue_threshold & pz >= pvalue_threshold) {
-        outdf$pvalue[j] <- min(p2,pc)
-        outdf$log2FC[j] <- full$coefficients$count[[2]]
+        return(c(min(p2,pc), full$coefficients$count[[2]]))
       } else {
-        outdf$pvalue[j] <- min(p2,pz)
-        outdf$log2FC[j] <- full$coefficients$zero[[2]]
+        return(c(min(p2,pz), full$coefficients$zero[[2]]))
       } ## if diff abund but not diff prev, set coefficient to actual log fc so sign is appropriate
 
     } else {
 
-      full <- MASS::glm.nb(jcounts ~ colData$condition + offset(offsets))
-      red <- MASS::glm.nb(jcounts ~ 1 + offset(offsets))
+      # from library MASS
+      full <- glm.nb(jcounts ~ colData$condition + offset(offsets), model = FALSE, y = FALSE)
+      red <- glm.nb(jcounts ~ 1 + offset(offsets), model = FALSE, y = FALSE)
 
-      outdf$pvalue[j] <- as.numeric(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE))
-      outdf$log2FC[j] <- full$coefficients[[2]]
+      return(c(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE), 
+               full$coefficients[[2]]))
 
     }
     
-  }
+  })
+  
+  outdf <- data.frame(ID=colnames(bigTab), 
+                      pvalue=res[1,],
+                      meanA=rowMeans(relabund[,rownames(colData)[colData$condition==conditionA]]), 
+                      meanB=rowMeans(relabund[,rownames(colData)[colData$condition==conditionB]]),
+                      log2FC=res[2,]) ## actually logit; keeping name for compatibility
                      
   outdf_filt <- outdf[,c('ID','pvalue')]
   write.table(outdf_filt,
-              file=gzfile(paste(output_tmp_DESeq2,i,"_pvalue_part_tmp.gz",sep="")),
+              file=gzfile(paste(output_tmp_zeroinfl,i,"_pvalue_part_tmp.gz",sep="")),
               sep="\t",
               quote=FALSE,
               col.names = FALSE,
               row.names = FALSE)
   
-  outdf_filt <- cbind(outdf[, c('ID','meanA','meanB','log2FC')], as.data.frame(bigTab))
+  outdf_filt <- cbind(outdf[, c('ID','meanA','meanB','log2FC')], as.data.frame(relabund))
   write.table(outdf_filt,
-              file=gzfile(paste(output_tmp_DESeq2,i,"_dataDESeq2_part_tmp.gz", sep="")),
+              file=gzfile(paste(output_tmp_zeroinfl,i,"_dataZeroinfl_part_tmp.gz", sep="")),
               sep="\t",
               quote=FALSE,
               col.names = FALSE,
@@ -221,17 +227,17 @@ logging(paste("Foreach done:", date()))
 dir.create(dirname(output_pvalue_all))
 
 #MERGE ALL CHUNKS PVALUE INTO A FILE
-system(paste("find", output_tmp_DESeq2, "-name '*_pvalue_part_tmp.gz' | xargs cat >", output_pvalue_all))
+system(paste("find", output_tmp_zeroinfl, "-name '*_pvalue_part_tmp.gz' | xargs cat >", output_pvalue_all))
 
 logging(paste("Pvalues merged into",output_pvalue_all))
 
 #MERGE ALL CHUNKS DESeq2 INTO A FILE
-system(paste("find", output_tmp_DESeq2, "-name '*_dataDESeq2_part_tmp.gz' | xargs cat >", dataDESeq2All))
+system(paste("find", output_tmp_zeroinfl, "-name '*_dataZeroinfl_part_tmp.gz' | xargs cat >", dataZeroinflAll))
 
-logging(paste("DESeq2 results merged into",dataDESeq2All))
+logging(paste("DESeq2 results merged into",dataZeroinflAll))
 
 # REMOVE DESeq2 CHUNKS RESULTS
-system(paste("rm -rf", output_tmp_DESeq2))
+system(paste("rm -rf", output_tmp_zeroinfl))
  
 #CREATE AND WRITE THE ADJUSTED PVALUE UNDER THRESHOLD WITH THEIR ID
 pvalueAll         = read.table(output_pvalue_all, header=F, stringsAsFactors=F)
@@ -250,19 +256,19 @@ write.table(adjPvalue_dataframe,
 
 logging("Pvalues are adjusted")
 
-#LEFT JOIN INTO dataDESeq2All
+#LEFT JOIN INTO dataZeroinflAll
 #GET ALL THE INFORMATION (ID,MEAN_A,MEAN_B,LOG2FC,COUNTS) FOR DE KMERS
-system(paste("echo \"LANG=en_EN join <(zcat ", adj_pvalue," | LANG=en_EN sort -n -k1) <(zcat ", dataDESeq2All," | LANG=en_EN sort -n -k1) | awk 'function abs(x){return ((x < 0.0) ? -x : x)} {if (abs(\\$5) >=", log2fc_threshold, " && \\$2 <= ", pvalue_threshold, ") print \\$0}' | tr ' ' '\t' | gzip > ", dataDESeq2Filtered, "\" | bash", sep=""))
-system(paste("rm", adj_pvalue, dataDESeq2All))
+system(paste("echo \"LANG=en_EN join <(zcat ", adj_pvalue," | LANG=en_EN sort -n -k1) <(zcat ", dataZeroinflAll," | LANG=en_EN sort -n -k1) | awk 'function abs(x){return ((x < 0.0) ? -x : x)} {if (abs(\\$5) >=", log2fc_threshold, " && \\$2 <= ", pvalue_threshold, ") print \\$0}' | tr ' ' '\t' | gzip > ", dataZeroinflFiltered, "\" | bash", sep=""))
+system(paste("rm", adj_pvalue, dataZeroinflAll))
 
 logging("Get counts for pvalues that passed the filter")
 
-#CREATE THE FINAL HEADER USING ADJ_PVALUE AND DATADESeq2ALL ONES AND COMPRESS THE FILE
+#CREATE THE FINAL HEADER USING ADJ_PVALUE AND dataZeroinflAll ONES AND COMPRESS THE FILE
 # CREATE THE HEADER FOR THE DESeq2 TABLE RESULT
 
 #SAVE THE HEADER
 system(paste("echo 'tag\tpvalue\tmeanA\tmeanB\tlog2FC' | paste - ", header_kmer_counts," | gzip > ", output_diff_counts))
-system(paste("cat", dataDESeq2Filtered, ">>", output_diff_counts))
-system(paste("rm", dataDESeq2Filtered))
+system(paste("cat", dataZeroinflFiltered, ">>", output_diff_counts))
+system(paste("rm", dataZeroinflFiltered))
 
 logging("Analysis done")
