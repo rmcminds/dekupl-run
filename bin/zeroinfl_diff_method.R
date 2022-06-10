@@ -24,9 +24,10 @@
 # Software. 
 #######################################################################
 
-library("data.table") ## requires extra dependency R.utils
+library("data.table")
 library("foreach")
 library("doParallel")
+## also requires package pscl, which is not included in standard DE-kupl installation
 
 args <- commandArgs(TRUE)
 
