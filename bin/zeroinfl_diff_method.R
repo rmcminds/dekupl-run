@@ -172,7 +172,7 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
       if(pc < pvalue_threshold & pz >= pvalue_threshold) {
         return(c(min(p2,pc), full$coefficients$count[[2]]))
       } else {
-        return(c(min(p2,pz), full$coefficients$zero[[2]]))
+        return(c(min(p2,pz), -full$coefficients$zero[[2]])) ## for some reason the 'zero' model coefficient is 'backwards' intuitively
       } ## if diff abund but not diff prev, set coefficient to actual log fc so sign is appropriate
 
     } else {
