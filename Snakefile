@@ -33,9 +33,6 @@ import datetime
 from sys import platform
 from snakemake.utils import read_job_properties
 
-jobscript = sys.argv[0]
-job_properties = read_job_properties(jobscript)
-
 __author__ = "Jérôme Audoux (jerome.audoux@inserm.fr)"
 
 
@@ -71,6 +68,7 @@ OUTPUT_DIR      = config['output_dir']
 FASTQ_DIR       = config['fastq_dir']
 SEED            = config['seed'] if 'seed' in config else 'fixed'
 MASKING         = config['masking'] if 'masking' in config else 'mask'
+ZI_CORES        = config['zi_cores']
 
 # DIRECTORIES
 BIN_DIR         = workflow.basedir + "/bin"
@@ -195,7 +193,7 @@ else:
 
 if DIFF_METHOD == "zeroinfl":
     REXEC = "mpirun Rscript"
-    MAX_CPU = job_properties[threads]
+    MAX_CPU = ZI_CORES
 else:
     REXEC = "Rscript"
     MAX_CPU = 20
