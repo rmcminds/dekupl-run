@@ -193,7 +193,7 @@ elif DIFF_METHOD == "zeroinfl":
 else:
     sys.exit("Invalid value for 'diff_method', possible choices are: 'DESeq2', 'limma', 'Ttest', 'binomial', and 'zeroinfl'")
 
-if TEST_DIFF_SCRIPT == "zeroinfl":
+if DIFF_METHOD == "zeroinfl":
     REXEC = "mpirun Rscript"
     MAX_CPU = job_properties[threads]
 else:
