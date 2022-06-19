@@ -31,6 +31,10 @@ import csv
 import gzip
 import datetime
 from sys import platform
+from snakemake.utils import read_job_properties
+
+jobscript = sys.argv[0]
+job_properties = read_job_properties(jobscript)
 
 __author__ = "Jérôme Audoux (jerome.audoux@inserm.fr)"
 
@@ -129,7 +133,6 @@ MAX_MEM_KALLISTO  = 4000
 MAX_MEM_JELLYFISH = 8000
 MAX_MEM_SORT      = 3000
 
-MAX_CPU           = 20
 MAX_CPU_JELLYFISH = 10
 MAX_CPU_SORT      = 10
 
@@ -192,8 +195,10 @@ else:
 
 if TEST_DIFF_SCRIPT == "zeroinfl":
     REXEC = "mpirun Rscript"
+    MAX_CPU = job_properties[threads]
 else:
     REXEC = "Rscript"
+    MAX_CPU = 20
 
 # AUTOMATICALLY SET GENE DIFF METHOD TO LIMMA-VOOM IF MORE THAN 100 SAMPLES
 if 'gene_diff_method' not in config :
