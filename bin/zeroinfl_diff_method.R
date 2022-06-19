@@ -26,9 +26,10 @@
 
 library("data.table")
 library("foreach")
-library("doParallel")
 library("MASS")
 library("pscl")
+library("doMPI")
+## also requires RhpcBLASctl
 
 args <- commandArgs(TRUE)
 
@@ -59,11 +60,6 @@ adj_pvalue                = paste(output_tmp,"/adj_pvalue.txt.gz",sep="")
 dataZeroinflAll           = paste(output_tmp,"/dataZeroinflAll.txt.gz",sep="")
 dataZeroinflFiltered      = paste(output_tmp,"/dataZeroinflFiltered.txt.gz",sep="")
 
-# Create directories
-dir.create(output_tmp, showWarnings = FALSE, recursive = TRUE)
-dir.create(output_tmp_chunks, showWarnings = FALSE, recursive = TRUE)
-dir.create(output_tmp_zeroinfl, showWarnings = FALSE, recursive = TRUE)
-
 # Function for logging to the output
 logging <- function(str) {
   sink(file=paste(output_log), append=TRUE, split=TRUE)
@@ -79,7 +75,14 @@ nbFiles <- function(dir) {
   return(as.numeric(system(paste("ls ", dir, "|grep subfile | wc -l"), intern=TRUE)))
 }
 
-dir.create(output_tmp, showWarnings = FALSE)
+# Set the number of cores to use
+cl <- startMPIcluster() 
+registerDoMPI(cl)
+
+# Create directories
+dir.create(output_tmp, showWarnings = FALSE, recursive = TRUE)
+dir.create(output_tmp_chunks, showWarnings = FALSE, recursive = TRUE)
+dir.create(output_tmp_zeroinfl, showWarnings = FALSE, recursive = TRUE)
 
 logging(paste("Start zeroinfl_diff_methods"))
 logging(paste("pvalue_threshold", pvalue_threshold))
@@ -87,9 +90,6 @@ logging(paste("log2fc_threshold", log2fc_threshold))
 
 ## LOADING PRIOR KNOWN NORMALISATION FACTORS
 colData = read.table(sample_conditions,header=T,row.names=1)
-
-# Set the number of cores to use
-registerDoParallel(cores=nb_core)
 
 # CLEAN THE TMP FOLDER
 system(paste("rm -f ", output_tmp_chunks, "/*", sep=""))
@@ -149,6 +149,9 @@ logging(paste("Foreach of the", length(lst_files),"files"))
 
 ## zero inflated negative binomial regression ANALYSIS ON EACH k-mer
 invisible(foreach(i=1:length(lst_files)) %dopar% {
+  
+  RhpcBLASctl::omp_set_num_threads(1)
+  RhpcBLASctl::blas_set_num_threads(1)
   
   bigTab = as.matrix(read.table(lst_files[[i]],header=F,stringsAsFactors=F,row.names=1))
   colnames(bigTab) <- header
