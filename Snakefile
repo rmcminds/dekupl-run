@@ -190,6 +190,11 @@ elif DIFF_METHOD == "zeroinfl":
 else:
     sys.exit("Invalid value for 'diff_method', possible choices are: 'DESeq2', 'limma', 'Ttest', 'binomial', and 'zeroinfl'")
 
+if TEST_DIFF_SCRIPT == "zeroinfl":
+    REXEC = "mpirun Rscript"
+else:
+    REXEC = "Rscript"
+
 # AUTOMATICALLY SET GENE DIFF METHOD TO LIMMA-VOOM IF MORE THAN 100 SAMPLES
 if 'gene_diff_method' not in config :
     if len(SAMPLE_NAMES) <= 100:
@@ -674,23 +679,23 @@ rule test_diff_counts:
   threads: MAX_CPU
   log: LOGS + "/test_diff_counts.logs"
   shell:
-        """
-        Rscript {TEST_DIFF_SCRIPT} \
-        {input.binary} \
-        {input.counts} \
-        {input.sample_conditions} \
-        {params.pvalue_threshold} \
-        {params.log2fc_threshold} \
-        {params.conditionA} \
-        {params.conditionB} \
-        {threads} \
-        {params.chunk_size} \
-        {params.tmp_dir} \
-        {output.diff_counts} \
-        {output.pvalue_all} \
-        {log} \
-        {params.seed}
-        """
+      """
+      {REXEC} {TEST_DIFF_SCRIPT} \
+      {input.binary} \
+      {input.counts} \
+      {input.sample_conditions} \
+      {params.pvalue_threshold} \
+      {params.log2fc_threshold} \
+      {params.conditionA} \
+      {params.conditionB} \
+      {threads} \
+      {params.chunk_size} \
+      {params.tmp_dir} \
+      {output.diff_counts} \
+      {output.pvalue_all} \
+      {log} \
+      {params.seed}
+      """
 
 rule merge_tags:
   input:
