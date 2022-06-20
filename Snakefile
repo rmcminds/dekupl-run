@@ -68,7 +68,7 @@ OUTPUT_DIR      = config['output_dir']
 FASTQ_DIR       = config['fastq_dir']
 SEED            = config['seed'] if 'seed' in config else 'fixed'
 MASKING         = config['masking'] if 'masking' in config else 'mask'
-ZI_CORES        = config['zi_cores']
+ZI_CORES        = config['zi_cores'] if 'zi_cores' in config else 20
 
 # DIRECTORIES
 BIN_DIR         = workflow.basedir + "/bin"
