@@ -69,6 +69,7 @@ FASTQ_DIR       = config['fastq_dir']
 SEED            = config['seed'] if 'seed' in config else 'fixed'
 MASKING         = config['masking'] if 'masking' in config else 'mask'
 ZI_CORES        = config['zi_cores'] if 'zi_cores' in config else 20
+RAW_PVALUES     = config['raw_pvalues'] if 'raw_pvalues' in config else 'FALSE'
 
 # DIRECTORIES
 BIN_DIR         = workflow.basedir + "/bin"
@@ -678,7 +679,8 @@ rule test_diff_counts:
     log2fc_threshold = LOG2FC_MIN,
     chunk_size = CHUNK_SIZE,
     tmp_dir = TMP_DIR + "/test_diff",
-    seed = SEED
+    seed = SEED,
+    raw_pvalues = RAW_PVALUES
   threads: MAX_CPU
   log: LOGS + "/test_diff_counts.logs"
   shell:
@@ -697,7 +699,8 @@ rule test_diff_counts:
       {output.diff_counts} \
       {output.pvalue_all} \
       {log} \
-      {params.seed}
+      {params.seed} \
+      {params.raw_pvalues}
       """
 
 rule merge_tags:
