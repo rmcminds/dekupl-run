@@ -41,13 +41,15 @@ conditionA                = args[6]#snakemake@params$conditionA
 conditionB                = args[7]#snakemake@params$conditionB
 nb_core                   = args[8]#snakemake@threads
 chunk_size                = as.numeric(args[9])#snakemake@params$chunk_size
-seed                      = args[14]#snakemake@params$seed
 
 # Get output files
 output_tmp                = args[10]#snakemake@output$tmp_dir
 output_diff_counts        = args[11]#snakemake@output$diff_counts
 output_pvalue_all         = args[12]#snakemake@output$pvalue_all
 output_log                = args[13]#snakemake@log[[1]]
+
+# RMcMinds modification to allow for use of raw p-values
+raw_pvalues               = as.logical(args[15])#snakemake@params@raw_pvalues
 
 # Temporary files
 output_tmp_chunks         = paste(output_tmp,"/tmp_chunks/",sep="")
@@ -95,15 +97,9 @@ system(paste("rm -f ", output_tmp_chunks, "/*", sep=""))
 # SAVE THE HEADER INTO A FILE
 system(paste("zcat", kmer_counts, "| head -1 | cut -f2- >", header_kmer_counts))
 
-# SHUFFLE AND SPLIT THE MAIN FILE INTO CHUNKS WITH AUTOINCREMENTED NAMES, ACCORDING TO SEED
-if(seed == 'fixed'){
-    system(paste("zcat", kmer_counts, " >tmp_shuff; cat tmp_shuff| tail -n +2 | shuf --random-source=tmp_shuff | awk -v", paste("chunk_size=", chunk_size,sep=""), "-v", paste("output_tmp_chunks=",output_tmp_chunks,sep=""),
+# SHUFFLE AND SPLIT THE MAIN FILE INTO CHUNKS WITH AUTOINCREMENTED NAMES
+system(paste("zcat", kmer_counts, "| tail -n +2 | shuf | awk -v", paste("chunk_size=", chunk_size,sep=""), "-v", paste("output_tmp_chunks=",output_tmp_chunks,sep=""),
              "'NR%chunk_size==1{OFS=\"\\t\";x=++i\"_subfile.txt.gz\"}{OFS=\"\";print | \"gzip >\" output_tmp_chunks x}'"))
-    system("rm tmp_shuff")
-}else{
-    system(paste("zcat", kmer_counts, "| tail -n +2 | shuf | awk -v", paste("chunk_size=", chunk_size,sep=""), "-v", paste("output_tmp_chunks=",output_tmp_chunks,sep=""),
-                 "'NR%chunk_size==1{OFS=\"\\t\";x=++i\"_subfile.txt.gz\"}{OFS=\"\";print | \"gzip >\" output_tmp_chunks x}'"))
-}
 
 logging("Shuffle and split done")
 
@@ -188,7 +184,7 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
                              })
 
             dds <- nbinomWaldTest(dds)
-            resDESeq2 <- results(dds, pAdjustMethod = "none", contrast = c("condition",conditionB,conditionA))
+            resDESeq2 <- results(dds, pAdjustMethod = "none")
 
             #COLLECT COUNTS
             NormCount<- as.data.frame(counts(dds, normalized=TRUE))
@@ -243,7 +239,11 @@ system(paste("rm -rf", output_tmp_DESeq2))
 #CREATE AND WRITE THE ADJUSTED PVALUE UNDER THRESHOLD WITH THEIR ID
 pvalueAll         = read.table(output_pvalue_all, header=F, stringsAsFactors=F)
 names(pvalueAll)  = c("tag","pvalue")
-adjPvalue         = p.adjust(as.numeric(as.character(pvalueAll[,"pvalue"])),"BH")
+if(raw_pvalues) {
+  adjPvalue         = as.numeric(as.character(pvalueAll[,"pvalue"]))
+} else {
+  adjPvalue         = p.adjust(as.numeric(as.character(pvalueAll[,"pvalue"])),"BH")
+}
 
 adjPvalue_dataframe = data.frame(tag=pvalueAll$tag,
                                  pvalue=adjPvalue)
@@ -259,7 +259,7 @@ logging("Pvalues are adjusted")
 
 #LEFT JOIN INTO dataDESeq2All
 #GET ALL THE INFORMATION (ID,MEAN_A,MEAN_B,LOG2FC,COUNTS) FOR DE KMERS
-system(paste("echo \"LANG=en_EN join <(zcat ", adj_pvalue," | LANG=en_EN sort -n -k1) <(zcat ", dataDESeq2All," | LANG=en_EN sort -n -k1) | awk 'function abs(x){return ((x < 0.0) ? -x : x)} {if (abs(\\$5) >=", log2fc_threshold, " && \\$2 <= ", pvalue_threshold, ") print \\$0}' | tr ' ' '\t' | gzip > ", dataDESeq2Filtered, "\" | bash", sep=""))
+system(paste("echo \"join <(zcat ", adj_pvalue,") <(zcat ", dataDESeq2All," ) | awk 'function abs(x){return ((x < 0.0) ? -x : x)} {if (abs(\\$5) >=", log2fc_threshold, " && \\$2 <= ", pvalue_threshold, ") print \\$0}' | tr ' ' '\t' | gzip > ", dataDESeq2Filtered, "\" | bash", sep=""))
 system(paste("rm", adj_pvalue, dataDESeq2All))
 
 logging("Get counts for pvalues that passed the filter")
