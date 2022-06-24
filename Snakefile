@@ -189,8 +189,10 @@ elif DIFF_METHOD == "binomial":
     TEST_DIFF_SCRIPT   = BIN_DIR + "/binomial_diff_method.R"
 elif DIFF_METHOD == "zeroinfl":
     TEST_DIFF_SCRIPT   = BIN_DIR + "/zeroinfl_diff_method.R"
+elif DIFF_METHOD == "separation":
+    TEST_DIFF_SCRIPT   = BIN_DIR + "/separation_diff_method.R"
 else:
-    sys.exit("Invalid value for 'diff_method', possible choices are: 'DESeq2', 'limma', 'Ttest', 'binomial', and 'zeroinfl'")
+    sys.exit("Invalid value for 'diff_method', possible choices are: 'DESeq2', 'limma', 'Ttest', 'binomial', 'zeroinfl', and 'separation'")
 
 if DIFF_METHOD == "zeroinfl":
     REXEC = "mpirun Rscript"
