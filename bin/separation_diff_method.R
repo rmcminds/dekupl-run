@@ -159,11 +159,12 @@ invisible(foreach(i=1:length(lst_files)) %dopar% {
 
   res <- apply(logicalTab, 1, function(presence) {
     
-    numcondition <- colData$condition == conditionB
-    alltreatment <- all(presence[numcondition])
-    nocontrol <- !any(presence[!numcondition])
-    allcontrol <- all(presence[!numcondition])
-    notreatment <- !any(presence[numcondition])
+    isA <- colData$condition == conditionA
+    isB <- colData$condition == conditionB
+    alltreatment <- all(presence[isB])
+    nocontrol <- !any(presence[isA])
+    allcontrol <- all(presence[isA])
+    notreatment <- !any(presence[isB])
   
     if(alltreatment & nocontrol) {
       return(c(1e-6,1))
