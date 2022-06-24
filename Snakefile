@@ -194,7 +194,7 @@ elif DIFF_METHOD == "separation":
 else:
     sys.exit("Invalid value for 'diff_method', possible choices are: 'DESeq2', 'limma', 'Ttest', 'binomial', 'zeroinfl', and 'separation'")
 
-if DIFF_METHOD == "zeroinfl":
+if DIFF_METHOD in ["zeroinfl", "separation"]:
     REXEC = "mpirun Rscript"
     MAX_CPU = ZI_CORES
 else:
