@@ -231,6 +231,9 @@ invisible(foreach(i=1:length(lst_files), .options.multicore=opts) %dopar% {
   
 }) #END FOREACH
 
+closeCluster(cl)
+mpi.finalize()
+  
 system(paste("rm -rf", output_tmp_chunks))
 
 logging(paste("Foreach done:", date()))
