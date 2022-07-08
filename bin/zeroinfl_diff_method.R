@@ -44,6 +44,7 @@ conditionB                = args[7]#snakemake@params$conditionB
 nb_core                   = args[8]#snakemake@threads
 chunk_size                = as.numeric(args[9])#snakemake@params$chunk_size
 seed                      = args[14]#snakemake@params$seed
+binary_only               = as.logical(args[16])#snakemake@params$binary_only
 
 # Get output files  
 output_tmp                = args[10]#snakemake@output$tmp_dir
@@ -166,31 +167,49 @@ invisible(foreach(i=1:length(lst_files), .options.multicore=opts) %dopar% {
       if(sd(jcounts) > 0 & !any(is.infinite(jcounts))) {
       
         if(0 %in% jcounts) {
-    
+              
           # from library pscl
           full <- zeroinfl(jcounts ~ colData$condition + offset(offsets) | colData$condition, dist='negbin', model = FALSE, y = FALSE)
-          red2 <- zeroinfl(jcounts ~ 1 + offset(offsets) | 1, dist='negbin', model = FALSE, y = FALSE)
-          redc <- zeroinfl(jcounts ~ 1 + offset(offsets) | colData$condition, dist='negbin', model = FALSE, y = FALSE)
           redz <- zeroinfl(jcounts ~ colData$condition + offset(offsets) | 1, dist='negbin', model = FALSE, y = FALSE)
     
-          p2 <- pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE)
-          pc <- pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE)
           pz <- pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE)
     
-          if(pc < pvalue_threshold & pz >= pvalue_threshold) {
-            return(c(min(p2,pc), full$coefficients$count[[2]]))
+          if(binary_only) {
+          
+            return(c(pz, -full$coefficients$zero[[2]]))
+          
           } else {
-            return(c(min(p2,pz), -full$coefficients$zero[[2]])) ## for some reason the 'zero' model coefficient is 'backwards' intuitively
-          } ## if diff abund but not diff prev, set coefficient to actual log fc so sign is appropriate
+            
+            red2 <- zeroinfl(jcounts ~ 1 + offset(offsets) | 1, dist='negbin', model = FALSE, y = FALSE)
+            redc <- zeroinfl(jcounts ~ 1 + offset(offsets) | colData$condition, dist='negbin', model = FALSE, y = FALSE)
+            
+            p2 <- pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE)
+            pc <- pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE)
+          
+            if(pc < pvalue_threshold & pz >= pvalue_threshold) {
+              return(c(min(p2,pc), full$coefficients$count[[2]]))
+            } else {
+              return(c(min(p2,pz), -full$coefficients$zero[[2]])) ## for some reason the 'zero' model coefficient is 'backwards' intuitively
+            } ## if diff abund but not diff prev, set coefficient to actual log fc so sign is appropriate
+            
+          }
     
         } else {
+          
+          if(binary_only) {
+            
+            return(c(1,0))
+            
+          } else {
     
-          # from library MASS
-          full <- glm.nb(jcounts ~ colData$condition + offset(offsets), model = FALSE, y = FALSE)
-          red <- glm.nb(jcounts ~ 1 + offset(offsets), model = FALSE, y = FALSE)
-    
-          return(c(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE), 
-                   full$coefficients[[2]]))
+            # from library MASS
+            full <- glm.nb(jcounts ~ colData$condition + offset(offsets), model = FALSE, y = FALSE)
+            red <- glm.nb(jcounts ~ 1 + offset(offsets), model = FALSE, y = FALSE)
+
+            return(c(pchisq(2 * (logLik(full) - logLik(red)), df=1, lower.tail=FALSE), 
+                     full$coefficients[[2]]))
+            
+          }
     
         }
         
