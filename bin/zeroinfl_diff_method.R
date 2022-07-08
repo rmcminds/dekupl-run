@@ -167,22 +167,26 @@ invisible(foreach(i=1:length(lst_files), .options.multicore=opts) %dopar% {
       if(sd(jcounts) > 0 & !any(is.infinite(jcounts))) {
       
         if(0 %in% jcounts) {
-              
-          # from library pscl
-          full <- zeroinfl(jcounts ~ colData$condition + offset(offsets) | colData$condition, dist='negbin', model = FALSE, y = FALSE)
-          redz <- zeroinfl(jcounts ~ colData$condition + offset(offsets) | 1, dist='negbin', model = FALSE, y = FALSE)
-    
-          pz <- pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE)
     
           if(binary_only) {
+            
+            # from library pscl
+            full <- zeroinfl(jcounts ~ 1 + offset(offsets) | colData$condition, dist='negbin', model = FALSE, y = FALSE)
+            redz <- zeroinfl(jcounts ~ 1 + offset(offsets) | 1, dist='negbin', model = FALSE, y = FALSE)
           
+            pz <- pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE)
+
             return(c(pz, -full$coefficients$zero[[2]]))
           
           } else {
             
+            # from library pscl
+            full <- zeroinfl(jcounts ~ colData$condition + offset(offsets) | colData$condition, dist='negbin', model = FALSE, y = FALSE)
+            redz <- zeroinfl(jcounts ~ colData$condition + offset(offsets) | 1, dist='negbin', model = FALSE, y = FALSE)
             red2 <- zeroinfl(jcounts ~ 1 + offset(offsets) | 1, dist='negbin', model = FALSE, y = FALSE)
             redc <- zeroinfl(jcounts ~ 1 + offset(offsets) | colData$condition, dist='negbin', model = FALSE, y = FALSE)
             
+            pz <- pchisq(2 * (logLik(full) - logLik(redz)), df=1, lower.tail=FALSE)
             p2 <- pchisq(2 * (logLik(full) - logLik(red2)), df=2, lower.tail=FALSE)
             pc <- pchisq(2 * (logLik(full) - logLik(redc)), df=1, lower.tail=FALSE)
           
