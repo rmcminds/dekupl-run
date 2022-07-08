@@ -70,6 +70,7 @@ SEED            = config['seed'] if 'seed' in config else 'fixed'
 MASKING         = config['masking'] if 'masking' in config else 'mask'
 ZI_CORES        = config['zi_cores'] if 'zi_cores' in config else 20
 RAW_PVALUES     = config['raw_pvalues'] if 'raw_pvalues' in config else 'FALSE'
+BINARY_ONLY     = config['binary_only'] if 'binary_only' in config else 'FALSE'
 
 # DIRECTORIES
 BIN_DIR         = workflow.basedir + "/bin"
@@ -682,7 +683,8 @@ rule test_diff_counts:
     chunk_size = CHUNK_SIZE,
     tmp_dir = TMP_DIR + "/test_diff",
     seed = SEED,
-    raw_pvalues = RAW_PVALUES
+    raw_pvalues = RAW_PVALUES,
+    binary_only = BINARY_ONLY
   threads: MAX_CPU
   log: LOGS + "/test_diff_counts.logs"
   shell:
@@ -702,7 +704,8 @@ rule test_diff_counts:
       {output.pvalue_all} \
       {log} \
       {params.seed} \
-      {params.raw_pvalues}
+      {params.raw_pvalues} \
+      {params.binary_only}
       """
 
 rule merge_tags:
