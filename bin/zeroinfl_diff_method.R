@@ -272,28 +272,11 @@ logging(paste("DESeq2 results merged into",dataZeroinflAll))
 
 # REMOVE DESeq2 CHUNKS RESULTS
 system(paste("rm -rf", output_tmp_zeroinfl))
- 
-#CREATE AND WRITE THE ADJUSTED PVALUE UNDER THRESHOLD WITH THEIR ID
-pvalueAll         = read.table(output_pvalue_all, header=F, stringsAsFactors=F)
-names(pvalueAll)  = c("tag","pvalue")
-adjPvalue         = as.numeric(as.character(pvalueAll[,"pvalue"]))
-
-adjPvalue_dataframe = data.frame(tag=pvalueAll$tag,
-                                 pvalue=adjPvalue)
-
-write.table(adjPvalue_dataframe,
-            file=gzfile(adj_pvalue),
-            sep="\t",
-            quote=FALSE,
-            col.names = FALSE,
-            row.names = FALSE)
-
-logging("Pvalues are adjusted")
 
 #LEFT JOIN INTO dataZeroinflAll
 #GET ALL THE INFORMATION (ID,MEAN_A,MEAN_B,LOG2FC,COUNTS) FOR DE KMERS
-system(paste("echo \"LANG=en_EN join <(zcat ", adj_pvalue," | LANG=en_EN sort -n -k1) <(zcat ", dataZeroinflAll," | LANG=en_EN sort -n -k1) | awk 'function abs(x){return ((x < 0.0) ? -x : x)} {if (abs(\\$5) >=", log2fc_threshold, " && \\$2 <= ", pvalue_threshold, ") print \\$0}' | tr ' ' '\t' | gzip > ", dataZeroinflFiltered, "\" | bash", sep=""))
-system(paste("rm", adj_pvalue, dataZeroinflAll))
+system(paste("echo \"LANG=en_EN join <(zcat ", output_pvalue_all," | LANG=en_EN sort -n -k1) <(zcat ", dataZeroinflAll," | LANG=en_EN sort -n -k1) | awk 'function abs(x){return ((x < 0.0) ? -x : x)} {if (abs(\\$5) >=", log2fc_threshold, " && \\$2 <= ", pvalue_threshold, ") print \\$0}' | tr ' ' '\t' | gzip > ", dataZeroinflFiltered, "\" | bash", sep=""))
+system(paste("rm", dataZeroinflAll))
 
 logging("Get counts for pvalues that passed the filter")
 
